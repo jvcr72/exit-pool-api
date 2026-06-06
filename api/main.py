@@ -61,20 +61,16 @@ def verify_sha256_integrity(record: VoteRecord) -> bool:
         logger.warning(f"Integrity check failed. Calc: {calculated_hash}, Recv: {received_hash}")
     return match
 def authenticate_pollster(token: str, db: Session) -> str:
-    # 1. Verificar el formato del token
     if not token.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Esquema de autenticación inválido")
-    
+        raise HTTPException(status_code=401, detail="Esquema inválido")
     actual_token = token.split(" ")[1]
 
-    # 2. Consultar la base de datos en Neon para validar el token
-    # Esta consulta busca el token en la tabla que creaste
-    query = text("SELECT token FROM Encuestadores WHERE token = :t AND activo = TRUE")
+    # Usamos la tabla donde están tus tokens reales
+    query = text("SELECT token_aud FROM encuestadores WHERE token_aud = :t")
     result = db.execute(query, {"t": actual_token}).fetchone()
 
-    # 3. Si no existe en la base de datos, rechazamos el acceso
     if not result:
-        raise HTTPException(status_code=401, detail="Token no autorizado o inactivo")
+        raise HTTPException(status_code=401, detail="Token no autorizado")
 
     return actual_token
 
