@@ -3,24 +3,21 @@ import logging
 import os
 from typing import List
 from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from .database import get_db, rls_transaction
-from .models import Resultado
+from .models import Encuestador, Resultado
 
-# Configure logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ExitPoll_API")
 
-app = FastAPI(
-    title="Exit Poll Maneiro 2026",
-    version="1.0.0"
-)
+app = FastAPI(title="Exit Poll Municipal - Maneiro 2026")
 
+# ... (Modelos Pydantic iguales) ...
 class VoteRecord(BaseModel):
     id_registrosnvoto: str
     timestamp: str
@@ -34,79 +31,78 @@ class VoteRecord(BaseModel):
 class SyncPayload(BaseModel):
     records: List[VoteRecord]
 
+class SyncResponse(BaseModel):
+    status: str
+    message: str
+    synced_count: int
+    failed_records: List[dict] = []
+
+# ... (Funciones auxiliares iguales) ...
 def verify_sha256_integrity(record: VoteRecord) -> bool:
-    lat = f"{record.latitud:.6f}"
-    lon = f"{record.longitud:.6f}"
-    validation_string = f"{record.id_encuestador}:{record.timestamp}:{lat}:{lon}:{record.voto}"
-    calculated_hash = hashlib.sha256(validation_string.encode("utf-8")).hexdigest()
-    return calculated_hash == record.hash_validacion.strip().lower()
+    val_str = f"{record.id_encuestador}:{record.timestamp}:{record.latitud}:{record.longitud}:{record.voto}"
+    calc_hash = hashlib.sha256(val_str.encode("utf-8")).hexdigest()
+    return calc_hash == record.hash_validacion.strip().lower()
 
-def authenticate_pollster(token: str, db: Session) -> str:
-    if not token.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Esquema inválido")
-    actual_token = token.split(" ")[1]
-    query = text("SELECT token_aud FROM encuestadores WHERE token_aud = :t")
-    result = db.execute(query, {"t": actual_token}).fetchone()
-    if not result:
-        raise HTTPException(status_code=401, detail="Token no autorizado")
-    return actual_token
+@app.post("/api/v1/sync", response_model=SyncResponse)
+def sync_exit_poll(payload: SyncPayload, authorization: str = Header(...), db: Session = Depends(get_db)):
+    try:
+        # 1. Autenticación
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Token inválido")
+        token = authorization.split(" ")[1]
+        pollster = db.query(Encuestador).filter(Encuestador.token_aud == token).first()
+        if not pollster:
+            raise HTTPException(status_code=401, detail="No autorizado")
+        
+        pollster_id = pollster.id
+        synced = 0
+        failed = []
 
-# Rutas para archivos visuales
-@app.get("/", response_class=HTMLResponse)
-def read_root():
-    return HTMLResponse(content="<h1>Exit Poll API Activa</h1>")
+        # 2. Transacción
+        with rls_transaction(db, pollster_id) as session:
+            for record in payload.records:
+                if not verify_sha256_integrity(record):
+                    failed.append({"id": record.id_registrosnvoto, "error": "Hash inválido"})
+                    continue
+                
+                try:
+                    new_vote = Resultado(
+                        id_registrosnvoto=record.id_registrosnvoto,
+                        timestamp=datetime.fromisoformat(record.timestamp),
+                        latitud=record.latitud,
+                        longitud=record.longitud,
+                        voto=record.voto,
+                        hash_validacion=record.hash_validacion,
+                        id_encuestador=record.id_encuestador,
+                        centro_votacion=record.centro_votacion
+                    )
+                    session.add(new_vote)
+                    session.flush()
+                    synced += 1
+                except Exception as e:
+                    failed.append({"id": record.id_registrosnvoto, "error": str(e)})
+            
+            session.commit()
+            
+        return SyncResponse(status="success", message="Sincronización completada", synced_count=synced, failed_records=failed)
 
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error BD: {str(e)}")
+    
+    finally:
+        # ESTE ES EL CIERRE QUE RECLAMAS
+        db.close()
+
+# ... (Rutas HTML con ruta absoluta) ...
 @app.get("/dashboard", response_class=HTMLResponse)
 def read_dashboard():
-    with open("dashboard.html", "r", encoding="utf-8") as f:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dashboard.html")
+    with open(path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 @app.get("/mobile", response_class=HTMLResponse)
 def read_mobile():
-    with open("mobile.html", "r", encoding="utf-8") as f:
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mobile.html")
+    with open(path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
-
-@app.post("/api/v1/sync")
-def sync_exit_poll(
-    payload: SyncPayload,
-    authorization: str = Header(...),
-    db: Session = Depends(get_db)
-):
-    pollster_id = authenticate_pollster(authorization, db)
-    synced_records = 0
-    failed_list = []
-    
-    try:
-        with rls_transaction(db, pollster_id) as session:
-            for record in payload.records:
-                if not verify_sha256_integrity(record):
-                    failed_list.append({"id": record.id_registrosnvoto, "error": "Integridad fallida"})
-                    continue
-                
-                try:
-                    with session.begin_nested():
-                        db_record = Resultado(
-                            id_registrosnvoto=record.id_registrosnvoto,
-                            timestamp=datetime.fromisoformat(record.timestamp),
-                            latitud=record.latitud,
-                            longitud=record.longitud,
-                            voto=record.voto,
-                            hash_validacion=record.hash_validacion,
-                            id_encuestador=record.id_encuestador,
-                            centro_votacion=record.centro_votacion
-                        )
-                        session.add(db_record)
-                        session.flush()
-                    synced_records += 1
-                except Exception as e:
-                    failed_list.append({"id": record.id_registrosnvoto, "error": str(e)})
-                    
-    except Exception as trans_err:
-        return {"status": "error", "message": str(trans_err)}
-
-    return {
-        "status": "success",
-        "message": "Sincronizado correctamente",
-        "synced_count": synced_records,
-        "failed_records": failed_list
-    }
