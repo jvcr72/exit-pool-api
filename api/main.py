@@ -76,3 +76,20 @@ def read_mobile():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mobile.html")
     with open(path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+    @app.post("/api/v1/sync")
+async def sync_votes(request: Request, db: Session = Depends(get_db)):
+    try:
+        data = await request.json()
+        # Asumiendo que el JSON enviado tiene 'voto' y 'centro'
+        nuevo_voto = Resultado(
+            voto=data.get('voto'),
+            centro=data.get('centro')
+        )
+        db.add(nuevo_voto)
+        db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Error en sincronización: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()    
