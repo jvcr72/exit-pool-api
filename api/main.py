@@ -61,35 +61,22 @@ def verify_sha256_integrity(record: VoteRecord) -> bool:
         logger.warning(f"Integrity check failed. Calc: {calculated_hash}, Recv: {received_hash}")
     return match
 def authenticate_pollster(token: str, db: Session) -> str:
-    """
-    Validates the authorization token and returns the corresponding pollster ID.
-    """
+    # 1. Verificar el formato del token
     if not token.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication scheme. Must be 'Bearer <token>'"
-        )
+        raise HTTPException(status_code=401, detail="Esquema de autenticación inválido")
     
     actual_token = token.split(" ")[1]
-    
-    # Query database using ORM to find pollster with this token
-    pollster = db.query(Encuestador).filter(Encuestador.token_aud == actual_token).first()
-    
-    if not pollster:
-        db.rollback() # Close transaction on failure
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or unauthorized token"
-        )
-    
-    pollster_id = pollster.id
-    
-    # Update connection state to 'conectado' if it wasn't already
-    if pollster.estado_conexion != "conectado":
-        pollster.estado_conexion = "conectado"
-        
-    db.commit() # Always commit to finalize the transaction and leave the session clean
-    return pollster_id
+
+    # 2. Consultar la base de datos en Neon para validar el token
+    # Esta consulta busca el token en la tabla que creaste
+    query = text("SELECT token FROM Encuestadores WHERE token = :t AND activo = TRUE")
+    result = db.execute(query, {"t": actual_token}).fetchone()
+
+    # 3. Si no existe en la base de datos, rechazamos el acceso
+    if not result:
+        raise HTTPException(status_code=401, detail="Token no autorizado o inactivo")
+
+    return actual_token
 
 
 
