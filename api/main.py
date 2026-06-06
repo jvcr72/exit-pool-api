@@ -47,15 +47,17 @@ def verify_sha256_integrity(record: VoteRecord) -> bool:
 @app.get("/api/v1/projections")
 def get_projections(db: Session = Depends(get_db)):
     try:
-        # Aquí haces la consulta a tu base de datos para obtener los totales
-        # Ejemplo simplificado:
         total_votos = db.query(Resultado).count()
-        # Debes devolver la estructura que tu dashboard espera
+        
+        # Enviamos los datos con los nombres más comunes que el JS suele buscar
         return {
             "votos_registrados": total_votos,
-            "censo_total": 50000, # Ajusta según tu lógica
+            "votosRegistrados": total_votos,  # Por si busca en camelCase
+            "censo_total": 0,
+            "censoTotal": 0,
             "censo_muestreado": total_votos,
-            "ultima_actualizacion": datetime.now().isoformat()
+            "censoMuestreado": total_votos,
+            "ultima_actualizacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
