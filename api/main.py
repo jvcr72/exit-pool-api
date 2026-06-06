@@ -44,21 +44,32 @@ class SyncResponse(BaseModel):
 
 def verify_sha256_integrity(record: VoteRecord) -> bool:
     """
-    Computes SHA-256 of the record fields and compares it against the provided hash.
-    Formula: sha256(id_encuestador + ":" + timestamp + ":" + latitud + ":" + longitud + ":" + voto)
+    Computes SHA-256 of the record fields using normalized formatting 
+    to ensure consistency between client (mobile) and server (API).
     """
-    # Create the verification string exactly as defined in the plan
-    validation_string = f"{record.id_encuestador}:{record.timestamp}:{record.latitud}:{record.longitud}:{record.voto}"
+    # 1. Normalizar latitud y longitud a 6 decimales para evitar discrepancias de punto flotante
+    lat = f"{record.latitud:.6f}"
+    lon = f"{record.longitud:.6f}"
+    
+    # 2. Normalizar el timestamp (quitar posibles espacios en blanco)
+    ts = record.timestamp.strip()
+    
+    # 3. Crear la string de validación usando valores normalizados
+    validation_string = f"{record.id_encuestador}:{ts}:{lat}:{lon}:{record.voto}"
+    
+    # 4. Calcular el hash
     calculated_hash = hashlib.sha256(validation_string.encode("utf-8")).hexdigest()
     
-    match = (calculated_hash == record.hash_validacion.strip().lower())
+    # 5. Comparar con el hash recibido (limpio de espacios y en minúsculas)
+    received_hash = record.hash_validacion.strip().lower()
+    match = (calculated_hash == received_hash)
+    
     if not match:
         logger.warning(
-            f"Integrity check failed for record {record.id_registrosnvoto}. "
-            f"Calculated: {calculated_hash}, Received: {record.hash_validacion}"
+            f"Integrity check failed for {record.id_registrosnvoto}. "
+            f"Calculated: {calculated_hash}, Received: {received_hash}"
         )
     return match
-
 def authenticate_pollster(token: str, db: Session) -> str:
     """
     Validates the authorization token and returns the corresponding pollster ID.
