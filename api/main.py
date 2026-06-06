@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os
 from typing import List
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, Header
@@ -50,9 +51,20 @@ def authenticate_pollster(token: str, db: Session) -> str:
         raise HTTPException(status_code=401, detail="Token no autorizado")
     return actual_token
 
-@app.get("/")
+# Rutas para archivos visuales
+@app.get("/", response_class=HTMLResponse)
 def read_root():
     return HTMLResponse(content="<h1>Exit Poll API Activa</h1>")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def read_dashboard():
+    with open("dashboard.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+@app.get("/mobile", response_class=HTMLResponse)
+def read_mobile():
+    with open("mobile.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.post("/api/v1/sync")
 def sync_exit_poll(
