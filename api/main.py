@@ -49,7 +49,7 @@ def verify_sha256_integrity(record: VoteRecord) -> bool:
     ts = record.timestamp.strip()
     
     # NUEVO: Imprimimos la cadena exacta que usamos para calcular
-    validation_string = f"{record.id_encuestador}:{ts}:{lat}:{lon}:{record.voto}"
+    validation_string = f"{record.id_encuestador}:{record.timestamp}:{lat}:{lon}:{record.voto}"
     print(f"DEBUG_VALIDATION_STRING: {validation_string}") 
     
     calculated_hash = hashlib.sha256(validation_string.encode("utf-8")).hexdigest()
