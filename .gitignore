@@ -1,0 +1,27 @@
+# Base de datos y credenciales
+db/db_url.txt
+db_url.txt
+exitpoll_test.db
+exitpoll.db
+
+# Logs de ejecucion
+*.log
+etl_errors.log
+etl_ingesta.log
+
+# Archivos temporales y caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Archivos de configuración de editores y OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

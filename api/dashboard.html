@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maneiro Exit Poll 2026 - Centro de Control</title>
+    <!-- Google Fonts: Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.35);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --winner-color: #fbbf24;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(59, 130, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 90% 90%, rgba(245, 158, 11, 0.05) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #3b82f6, #60a5fa, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            font-size: 1rem;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .btn-refresh {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        .btn-refresh:hover {
+            transform: translateY(-1px);
+            background: #2563eb;
+            box-shadow: 0 6px 16px var(--primary-glow);
+        }
+
+        /* Metric Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .metric-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Main Workspace Layout */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Table Design */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 1rem;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 1.2rem 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 0.95rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .center-name {
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .weight-badge {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        /* Chart Canvas wrapper */
+        .chart-wrapper {
+            position: relative;
+            margin: auto;
+            width: 100%;
+            min-height: 280px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title">
+                <h1>Maneiro Exit Poll 2026</h1>
+                <p>Centro de Monitoreo y Proyecciones Estadísticas en Tiempo Real</p>
+            </div>
+            <div class="header-controls">
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    <span>Neon Cloud Conectado</span>
+                </div>
+                <button class="btn-refresh" onclick="fetchData()">Actualizar</button>
+            </div>
+        </header>
+
+        <!-- KPI Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <span class="metric-label">Votos Registrados</span>
+                <span class="metric-value" id="kpi-votes">0</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Censo Total Municipal</span>
+                <span class="metric-value" id="kpi-census">0</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Censo Muestreado</span>
+                <span class="metric-value" id="kpi-sampled-census">0</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Última Actualización</span>
+                <span class="metric-value" style="font-size: 1.2rem; margin-top: 0.5rem;" id="kpi-time">-</span>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Workspace -->
+        <div class="dashboard-layout">
+            <!-- Left Workspace: Center Weights & Sample distribution -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Muestra y Ponderación por Centro</h2>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Centro de Votación</th>
+                                <th>Censo Oficial</th>
+                                <th>Votos Recibidos</th>
+                                <th>Peso Proporcional ($W_c$)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="centers-table-body">
+                            <tr>
+                                <td colspan="4" class="empty-state">No hay datos para mostrar</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Right Workspace: Projection & charts -->
+            <div class="card" style="display: flex; flex-direction: column; gap: 2rem;">
+                <div>
+                    <div class="card-header">
+                        <h2 class="card-title">Proyección Ponderada (Sin Sesgo)</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="projectionChart"></canvas>
+                    </div>
+                </div>
+                
+                <div style="border-top: 1px solid var(--card-border); padding-top: 2rem;">
+                    <div class="card-header">
+                        <h2 class="card-title">Votos Brutos vs Proyección Ponderada</h2>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let projectionChart = null;
+        let comparisonChart = null;
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/v1/projections');
+                const data = await response.json();
+                
+                if (data.status === 'no_data') {
+                    showEmptyState(data.message);
+                    return;
+                }
+
+                updateKPIs(data);
+                updateTable(data.center_details);
+                updateCharts(data);
+                
+                // Update time
+                document.getElementById('kpi-time').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error("Error fetching exit poll data:", error);
+            }
+        }
+
+        function showEmptyState(message) {
+            document.getElementById('centers-table-body').innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        <h3>Sin Muestras Activas</h3>
+                        <p>${message}</p>
+                    </td>
+                </tr>
+            `;
+            document.getElementById('kpi-votes').textContent = '0';
+            document.getElementById('kpi-sampled-census').textContent = '0';
+        }
+
+        function updateKPIs(data) {
+            document.getElementById('kpi-votes').textContent = data.total_sample_size.toLocaleString();
+            document.getElementById('kpi-census').textContent = data.total_census.toLocaleString();
+            document.getElementById('kpi-sampled-census').textContent = data.sampled_census.toLocaleString();
+        }
+
+        function updateTable(centers) {
+            const tbody = document.getElementById('centers-table-body');
+            tbody.innerHTML = '';
+            
+            centers.forEach(c => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="center-name">${c.centro_votacion}</td>
+                    <td>${c.census.toLocaleString()} electores</td>
+                    <td><strong>${c.sample_size}</strong> votos</td>
+                    <td><span class="weight-badge">${(c.weight_factor * 100).toFixed(2)}%</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateCharts(data) {
+            const candidates = Object.keys(data.weighted_projection.percentages);
+            const weightedValues = Object.values(data.weighted_projection.percentages);
+            const unweightedValues = candidates.map(c => data.unweighted_results.percentages[c] || 0);
+            
+            const colors = ['#3b82f6', '#fbbf24', '#10b981', '#ec4899', '#8b5cf6'];
+            const hoverColors = ['#2563eb', '#f59e0b', '#059669', '#db2777', '#7c3aed'];
+
+            // 1. Doughnut Chart: Projection
+            if (projectionChart) {
+                projectionChart.destroy();
+            }
+            
+            const ctxProj = document.getElementById('projectionChart').getContext('2d');
+            projectionChart = new Chart(ctxProj, {
+                type: 'doughnut',
+                data: {
+                    labels: candidates,
+                    datasets: [{
+                        data: weightedValues,
+                        backgroundColor: colors.slice(0, candidates.length),
+                        borderColor: '#111827',
+                        borderWidth: 2,
+                        hoverBackgroundColor: hoverColors.slice(0, candidates.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#f3f4f6',
+                                font: { size: 13, family: 'Outfit' }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${context.label}: ${context.raw}% (Proyectado)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+
+            // 2. Bar Chart: Comparison
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+
+            const ctxComp = document.getElementById('comparisonChart').getContext('2d');
+            comparisonChart = new Chart(ctxComp, {
+                type: 'bar',
+                data: {
+                    labels: candidates,
+                    datasets: [
+                        {
+                            label: 'Votos Brutos (Sin Ponderar)',
+                            data: unweightedValues,
+                            backgroundColor: 'rgba(156, 163, 175, 0.4)',
+                            borderColor: 'rgba(156, 163, 175, 0.8)',
+                            borderWidth: 1.5,
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Proyección Ponderada',
+                            data: weightedValues,
+                            backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                            borderColor: '#60a5fa',
+                            borderWidth: 1.5,
+                            borderRadius: 6,
+                            shadowColor: 'rgba(59, 130, 246, 0.5)',
+                            shadowBlur: 10
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#f3f4f6',
+                                font: { size: 12, family: 'Outfit' }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) { return value + '%'; },
+                                color: '#9ca3af',
+                                font: { family: 'Outfit' }
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: '#f3f4f6',
+                                font: { family: 'Outfit', weight: '500' }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initial Load and Auto-Refresh Setup
+        fetchData();
+        setInterval(fetchData, 5000); // Auto refresh every 5 seconds
+    </script>
+</body>
+</html>

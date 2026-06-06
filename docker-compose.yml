@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: exitpoll_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_secure_password_123
+      POSTGRES_DB: exitpoll
+    ports:
+      - "5432:5432"
+    volumes:
+      # Automatically initialize database schema with schema.sql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql
+      # Persist database data locally
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+    driver: local

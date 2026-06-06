@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura de Votos - Exit Poll</title>
+    <!-- Web App manifest for PWA installation -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #3b82f6;
+            --primary-active: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            gap: 1rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #3b82f6, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.25rem;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Forms / Config Screen */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 0.85rem;
+            border-radius: 10px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:active {
+            background: var(--primary-active);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .btn-success:active {
+            background: #059669;
+        }
+
+        /* Voting Buttons */
+        .vote-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex-grow: 1;
+            justify-content: center;
+        }
+
+        .btn-vote {
+            padding: 1.8rem 1rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-vote:active {
+            transform: scale(0.97);
+        }
+
+        .btn-cand-a {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+        }
+
+        .btn-cand-b {
+            background: linear-gradient(135deg, #b45309, #d97706);
+        }
+
+        .btn-nulo {
+            background: linear-gradient(135deg, #4b5563, #374151);
+            padding: 1.2rem 1rem;
+            font-size: 1.1rem;
+        }
+
+        /* Info Display */
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-bar strong {
+            color: var(--text-main);
+        }
+
+        .sync-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 0.75rem 1rem;
+        }
+
+        .sync-count {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .sync-count span {
+            color: var(--warning);
+        }
+
+        .sync-btn-small {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        /* Screen state controls */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex-grow: 1;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(17, 24, 39, 0.95);
+            border: 1px solid var(--primary);
+            color: var(--text-main);
+            padding: 0.75rem 1.5rem;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999;
+            pointer-events: none;
+            text-align: center;
+            width: 80%;
+            max-width: 350px;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <h1>Exit Poll Maneiro</h1>
+            <p>Dispositivo de Registro de Votación</p>
+        </header>
+
+        <!-- Toast notification -->
+        <div id="toast" class="toast">Notificación</div>
+
+        <!-- SCREEN 1: Configuration -->
+        <div id="screen-config" class="screen active">
+            <div class="card">
+                <h3 style="margin-bottom: 1rem; font-weight: 600;">Configuración de Campo</h3>
+                
+                <div class="form-group">
+                    <label for="input-pollster">ID de Encuestador</label>
+                    <input type="text" id="input-pollster" placeholder="Ej. ENC-001">
+                </div>
+
+                <div class="form-group">
+                    <label for="input-token">Token de Auditoría</label>
+                    <input type="password" id="input-token" placeholder="Pega tu token de seguridad">
+                </div>
+
+                <div class="form-group">
+                    <label for="select-center">Centro de Votación</label>
+                    <select id="select-center">
+                        <option value="U.E. Colegío El Ángel">U.E. Colegio El Ángel</option>
+                        <option value="Casa de la Cultura Manuel Plácido Maneiro">Casa de la Cultura Manuel Plácido Maneiro</option>
+                        <option value="U.E. Nacional Bernardo Acosta">U.E. Nacional Bernardo Acosta</option>
+                        <option value="C.E.I. Luisa Cáceres de Arismendi">C.E.I. Luisa Cáceres de Arismendi</option>
+                        <option value="U.E. Estado Zulia">U.E. Estado Zulia</option>
+                        <option value="Liceo U.E. Angel Noriega Baloa">Liceo U.E. Angel Noriega Baloa</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveConfiguration()">Iniciar Captura</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: Vote Capture -->
+        <div id="screen-capture" class="screen">
+            <div class="card">
+                <div class="info-bar">
+                    <span>Centro: <strong id="val-center">-</strong></span>
+                    <span>ID: <strong id="val-pollster">-</strong></span>
+                </div>
+                
+                <!-- Queue offline status -->
+                <div class="sync-box">
+                    <div class="sync-count">
+                        Votos en cola: <span id="local-count">0</span>
+                    </div>
+                    <button class="sync-btn-small" onclick="syncVotes()">Sincronizar</button>
+                </div>
+            </div>
+
+            <!-- Vote Buttons Area -->
+            <div class="vote-section">
+                <button class="btn-vote btn-cand-a" onclick="registerVote('CANDIDATO_A')">CANDIDATO A</button>
+                <button class="btn-vote btn-cand-b" onclick="registerVote('CANDIDATO_B')">CANDIDATO B</button>
+                <button class="btn-vote btn-nulo" onclick="registerVote('VOTO_NULO')">VOTO NULO / BLANCO</button>
+            </div>
+
+            <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--card-border);" onclick="logout()">Cambiar Configuración</button>
+        </div>
+    </div>
+
+    <script>
+        // Local Configuration Variables
+        let pollsterId = '';
+        let bearerToken = '';
+        let votingCenter = '';
+        let localQueue = [];
+
+        // Load configuration on startup
+        window.addEventListener('load', () => {
+            pollsterId = localStorage.getItem('pollsterId') || '';
+            bearerToken = localStorage.getItem('bearerToken') || '';
+            votingCenter = localStorage.getItem('votingCenter') || '';
+            
+            // Load pending votes queue
+            const storedQueue = localStorage.getItem('localQueue');
+            if (storedQueue) {
+                localQueue = JSON.parse(storedQueue);
+            }
+            
+            document.getElementById('local-count').textContent = localQueue.length;
+
+            if (pollsterId && bearerToken && votingCenter) {
+                showCaptureScreen();
+            }
+        });
+
+        // Save settings
+        function saveConfiguration() {
+            const pId = document.getElementById('input-pollster').value.trim();
+            const token = document.getElementById('input-token').value.trim();
+            const center = document.getElementById('select-center').value;
+
+            if (!pId || !token) {
+                showToast("Por favor ingresa tu ID y Token", "danger");
+                return;
+            }
+
+            pollsterId = pId;
+            bearerToken = token;
+            votingCenter = center;
+
+            localStorage.setItem('pollsterId', pollsterId);
+            localStorage.setItem('bearerToken', bearerToken);
+            localStorage.setItem('votingCenter', votingCenter);
+
+            showCaptureScreen();
+            showToast("Configuración guardada exitosamente");
+        }
+
+        function showCaptureScreen() {
+            document.getElementById('val-pollster').textContent = pollsterId;
+            document.getElementById('val-center').textContent = votingCenter;
+            
+            document.getElementById('screen-config').classList.remove('active');
+            document.getElementById('screen-capture').classList.add('active');
+        }
+
+        function logout() {
+            localStorage.removeItem('pollsterId');
+            localStorage.removeItem('bearerToken');
+            localStorage.removeItem('votingCenter');
+            
+            document.getElementById('screen-capture').classList.remove('active');
+            document.getElementById('screen-config').classList.add('active');
+        }
+
+        // Generate UUID in JavaScript
+        function generateUUID() {
+            return 'vote-' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            }).substring(0, 16);
+        }
+
+        // Compute SHA-256 using Native Web Crypto API (fully offline compatible)
+        async function calculateSHA256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Register a vote in the offline local queue
+        function registerVote(candidate) {
+            showToast("Capturando GPS...", "warning");
+            
+            // Capture GPS (uses default coordinates if geolocation fails or is denied)
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        await saveVote(candidate, position.coords.latitude, position.coords.longitude);
+                    },
+                    async (error) => {
+                        console.warn("Geolocation failed, using default center coordinates.", error);
+                        // Fallback coordinates close to Pampatar
+                        await saveVote(candidate, 10.9922, -63.8051);
+                    },
+                    { timeout: 5000, enableHighAccuracy: true }
+                );
+            } else {
+                saveVote(candidate, 10.9922, -63.8051);
+            }
+        }
+
+        async function saveVote(candidate, lat, lng) {
+            const idVoto = generateUUID();
+            
+            // Format ISO UTC timestamp
+            const timestamp = new Date().toISOString();
+            
+            // Calculate security hash: id_encuestador:timestamp:latitud:longitud:voto
+            const validationString = `${pollsterId}:${timestamp}:${lat}:${lng}:${candidate}`;
+            const hashSig = await calculateSHA256(validationString);
+            
+            const voteRecord = {
+                id_registrosnvoto: idVoto,
+                timestamp: timestamp,
+                latitud: parseFloat(lat.toFixed(6)),
+                longitud: parseFloat(lng.toFixed(6)),
+                voto: candidate,
+                id_encuestador: pollsterId,
+                centro_votacion: votingCenter,
+                hash_validacion: hashSig
+            };
+            
+            localQueue.push(voteRecord);
+            localStorage.setItem('localQueue', JSON.stringify(localQueue));
+            
+            document.getElementById('local-count').textContent = localQueue.length;
+            showToast(`¡Voto por ${candidate.replace('_', ' ')} registrado!`);
+        }
+
+        // Sincronizar votos de la cola local con el servidor en la nube
+        async function syncVotes() {
+            if (localQueue.length === 0) {
+                showToast("No hay votos en la cola local para sincronizar.", "warning");
+                return;
+            }
+
+            showToast("Sincronizando...", "warning");
+            
+            const payload = {
+                records: localQueue
+            };
+
+            try {
+                // Post directly to API endpoint (matches relative path)
+                const response = await fetch('/api/v1/sync', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${bearerToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 401) {
+                    showToast("Token de autorización inválido. Configura de nuevo.", "danger");
+                    return;
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    const synced = data.synced_count;
+                    const failed = data.failed_records.length;
+                    
+                    if (synced > 0) {
+                        // Success: clear local queue
+                        localQueue = [];
+                        localStorage.setItem('localQueue', JSON.stringify(localQueue));
+                        document.getElementById('local-count').textContent = '0';
+                        showToast(`Sincronización exitosa: ${synced} votos cargados!`);
+                    } else {
+                        showToast(`Error al sincronizar: ${data.message || 'votos rechazados'}`, "danger");
+                    }
+                } else {
+                    showToast("Error en el bloque de sincronización de la API.", "danger");
+                }
+            } catch (err) {
+                console.error("Sync error:", err);
+                showToast("Fallo de conexión. Intentando offline.", "danger");
+            }
+        }
+
+        // Custom UI Toast Messages
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            
+            // Set styles based on type
+            if (type === "danger") {
+                toast.style.borderColor = "var(--danger)";
+                toast.style.boxShadow = "0 10px 25px rgba(239, 68, 68, 0.3)";
+            } else if (type === "warning") {
+                toast.style.borderColor = "var(--warning)";
+                toast.style.boxShadow = "0 10px 25px rgba(245, 158, 11, 0.3)";
+            } else {
+                toast.style.borderColor = "var(--success)";
+                toast.style.boxShadow = "0 10px 25px rgba(16, 185, 129, 0.3)";
+            }
+            
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
